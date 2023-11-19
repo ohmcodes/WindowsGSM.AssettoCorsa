@@ -8,7 +8,7 @@ using WindowsGSM.Functions;
 using WindowsGSM.GameServer.Engine;
 using WindowsGSM.GameServer.Query;
 using System.Collections.Generic;
-using System.Xml.Linq;
+
 
 namespace WindowsGSM.Plugins
 {
@@ -59,6 +59,7 @@ namespace WindowsGSM.Plugins
             filePath = Path.Combine(ServerPath.GetServersServerFiles(_serverData.ServerID), "cfg", "server_cfg.ini");
 
             createConfigFile();
+            _serverData.EmbedConsole = true;
         }
 
         // - Start server function, return its Process to WindowsGSM
@@ -126,7 +127,8 @@ namespace WindowsGSM.Plugins
         {
             await Task.Run(() =>
             {
-                Functions.ServerConsole.SendMessageToMainWindow(p.MainWindowHandle, "quit");
+                Functions.ServerConsole.SetMainWindow(p.MainWindowHandle);
+                Functions.ServerConsole.SendWaitToMainWindow("^c");
             });
             await Task.Delay(20000);
         }
@@ -134,10 +136,69 @@ namespace WindowsGSM.Plugins
         // - Update server function
         public async Task<Process> Update(bool validate = false, string custom = null)
         {
-            var (p, error) = await Installer.SteamCMD.UpdateEx(serverData.ServerID, AppId, validate, custom: custom, loginAnonymous: loginAnonymous);
-            Error = error;
-            await Task.Run(() => { p.WaitForExit(); });
-            return p;
+            // old
+            //var (p, error) = await Installer.SteamCMD.UpdateEx(serverData.ServerID, AppId, validate, custom: custom, loginAnonymous: loginAnonymous);
+            //Error = error;
+            //await Task.Run(() => { p.WaitForExit(); });
+            //return p;
+
+            // Prepare Process
+            string param = Installer.SteamCMD.GetParameter(ServerPath.GetServersServerFiles(_serverData.ServerID), AppId, true, loginAnonymous, null, custom);
+
+            if (param == null)
+            {
+                Error += "Steam account not set up\n";
+                return null;
+            }
+
+            string steamPath = ServerPath.GetBin("steamcmd", "steamcmd.exe");
+
+            var p = new Process()
+            {
+                StartInfo =
+                {
+                    WorkingDirectory = ServerPath.GetBin("steamcmd"),
+                    FileName = steamPath,
+                    Arguments = param,
+                    WindowStyle = ProcessWindowStyle.Normal,
+                    UseShellExecute = false
+                },
+                EnableRaisingEvents = true
+            };
+
+            // Fix the SteamCMD issue
+            Directory.CreateDirectory(Path.Combine(ServerPath.GetServersServerFiles(_serverData.ServerID), "steamapps"));
+
+            //if (AllowsEmbedConsole)
+            //{
+                //p.StartInfo.CreateNoWindow = false;
+                //p.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+                //p.StartInfo.StandardErrorEncoding = Encoding.UTF8;
+                //p.StartInfo.RedirectStandardInput = true;
+                //p.StartInfo.RedirectStandardOutput = true;
+                //p.StartInfo.RedirectStandardError = true;
+                //var serverConsole = new ServerConsole(_serverData.ServerID);
+                //p.OutputDataReceived += serverConsole.AddOutput;
+                //p.ErrorDataReceived += serverConsole.AddOutput;
+            //}
+
+            // Start Process
+            try
+            {
+                p.Start();
+                //if (AllowsEmbedConsole)
+                //{
+                //    p.BeginOutputReadLine();
+                //    p.BeginErrorReadLine();
+                //}
+
+                return p;
+            }
+            catch (Exception e)
+            {
+                Error += e.Message + "\n";
+                return null; // return null if fail to start
+            }
         }
 
         public bool IsInstallValid()

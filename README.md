@@ -42,6 +42,8 @@ Directories
 # NOTE
 - QueryPort is useless on this dedicated server
 - TCP_PORT and UDP_PORT Should be the same always
+- Auto Update Disabled (Only manual is working)
+- Manual update will show steamcmd authentication
 
 # License
 This project is licensed under the MIT License - see the <a href="https://github.com/ohmcodes/WindowsGSM.AssettoCorsa/blob/main/LICENSE">LICENSE.md</a> file for details
